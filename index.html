@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Roles de Cuadrillas Alsek</title>
+  <title>Rol de Cuadrillas Alsek</title>
 
   <style>
     * {
@@ -82,7 +82,6 @@
       margin-bottom: 2px;
     }
 
-    /* NUEVO: mes y año debajo de la semana */
     .badge-month-year {
       font-size: 11px;
       color: #c8f6ff;
@@ -228,7 +227,6 @@
       box-shadow: 0 0 8px #00ff9d88;
     }
 
-    /* Celdas de turno, versión neón */
     .turno-guardia {
       background: #ff1744;
       color: #ffffff;
@@ -252,6 +250,12 @@
       background: #4dabf7;
       color: #012033;
       font-weight: 600;
+    }
+
+    .turno-vacaciones {
+      background: #ffb347;
+      color: #331a00;
+      font-weight: 700;
     }
 
     .legend-card {
@@ -289,6 +293,132 @@
       border: 1px solid #00000055;
     }
 
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-card {
+      background: radial-gradient(circle at top, #00ff9d22, #00110d 60%);
+      border-radius: 18px;
+      border: 1px solid #00ff9d88;
+      box-shadow: 0 0 25px #00ff9d66;
+      padding: 18px 20px;
+      max-width: 420px;
+      width: 90%;
+      color: #e6ffe6;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .modal-subtitle {
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 10px;
+      opacity: 0.9;
+    }
+
+    .modal-info {
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .modal-info strong {
+      color: #9cffd2;
+    }
+
+    .modal-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      margin-bottom: 12px;
+      justify-content: center;
+    }
+
+    .modal-btn {
+      border: none;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease-out, box-shadow 0.15s ease-out, filter 0.15s ease-out;
+      white-space: nowrap;
+    }
+
+    .modal-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow: 0 0 12px #000000aa;
+    }
+
+    .modal-btn-guardia {
+      background: #ff1744;
+      color: #fff;
+    }
+
+    .modal-btn-diurno {
+      background: #ffe844;
+      color: #332b00;
+    }
+
+    .modal-btn-madrugador {
+      background: #c77dff;
+      color: #1c0033;
+    }
+
+    .modal-btn-descanso {
+      background: #4dabf7;
+      color: #012033;
+    }
+
+    .modal-btn-vacaciones {
+      background: #ffb347;
+      color: #331a00;
+    }
+
+    .modal-btn-quitar {
+      background: #37474f;
+      color: #eceff1;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .modal-footer-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #263238;
+      color: #eceff1;
+      transition: all 0.15s ease-out;
+    }
+
+    .modal-footer-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow: 0 0 10px #000000aa;
+    }
+
     @media (max-width: 768px) {
       .toolbar {
         flex-direction: column;
@@ -301,7 +431,6 @@
     }
   </style>
 
-  <!-- React + ReactDOM + Babel -->
   <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
@@ -310,8 +439,9 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useEffect } = React;
 
+    // LÓGICA DEL ROL — INTACTA
     const PATTERNS = [
       ['DESCANSO', 'DIURNO',  'DIURNO',  'DIURNO',  'DIURNO',  'DIURNO',  'GUARDIA'],
       ['DIURNO',   'DIURNO',  'DIURNO',  'DIURNO',  'DIURNO',  'DESCANSO','DIURNO'],
@@ -368,19 +498,69 @@
       return pattern[idxDia];
     }
 
+    function obtenerSemanaActual() {
+      const hoy = new Date();
+      const inicioAno = new Date(hoy.getFullYear(), 0, 1);
+      const msPorDia = 24 * 60 * 60 * 1000;
+      const diasTranscurridos = Math.floor((hoy - inicioAno) / msPorDia);
+      const semanaActual = Math.ceil((diasTranscurridos + inicioAno.getDay() + 1) / 7);
+      return { semanaActual, anoActual: hoy.getFullYear() };
+    }
+
+    function buildOverrideKey(ano, semana, idxCuadrilla, idxDia) {
+      return `${ano}-W${semana}-C${idxCuadrilla}-D${idxDia}`;
+    }
+
     function SistemaRolCuadrillas() {
-      const [numeroSemana, setNumeroSemana] = useState(48);
-      const [ano, setAno] = useState(2025);
+      const { semanaActual: semanaInicial, anoActual } = obtenerSemanaActual();
+      const [numeroSemana, setNumeroSemana] = useState(semanaInicial);
+      const [ano, setAno] = useState(anoActual);
       const [editando, setEditando] = useState(false);
+      const [esAdmin, setEsAdmin] = useState(false);
+
       const [cuadrillas, setCuadrillas] = useState([
         'Alejandro Sevilla',
         'Agustin Gonzalez',
         'Antonio Diaz',
         'Alejandro Garcia',
-        'luis Casillas',
+        'Luis Casillas',
         'Raul Diaz',
         'Jaime Granilla'
       ]);
+
+      const [overrides, setOverrides] = useState(() => {
+        try {
+          const stored = window.localStorage.getItem('rolCuadrillasOverrides');
+          return stored ? JSON.parse(stored) : {};
+        } catch (e) {
+          return {};
+        }
+      });
+
+      const [modalOpen, setModalOpen] = useState(false);
+      const [modalCell, setModalCell] = useState(null); // { idxCuadrilla, idxDia }
+
+      useEffect(() => {
+        // Detectar admin por localStorage
+        try {
+          const flag = window.localStorage.getItem('rolAdmin');
+          if (flag === '1') {
+            setEsAdmin(true);
+          } else {
+            setEsAdmin(false);
+          }
+        } catch (e) {
+          setEsAdmin(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        try {
+          window.localStorage.setItem('rolCuadrillasOverrides', JSON.stringify(overrides));
+        } catch (e) {
+          // ignorar
+        }
+      }, [overrides]);
 
       const dias = ['L', 'M', 'Mi', 'J', 'V', 'S', 'D'];
 
@@ -405,14 +585,172 @@
       };
 
       const irSemanaActual = () => {
-        const hoy = new Date();
-        const inicioAno = new Date(hoy.getFullYear(), 0, 1);
-        const msPorDia = 24 * 60 * 60 * 1000;
-        const diasTranscurridos = Math.floor((hoy - inicioAno) / msPorDia);
-        const semanaActual = Math.ceil((diasTranscurridos + inicioAno.getDay() + 1) / 7);
+        const { semanaActual, anoActual } = obtenerSemanaActual();
         setNumeroSemana(semanaActual);
-        setAno(hoy.getFullYear());
+        setAno(anoActual);
       };
+
+      function contarDescansosSemana(idxCuadrilla, semana, ano, overridesPropuesto) {
+        let contador = 0;
+        for (let d = 0; d < 7; d++) {
+          const keyDia = buildOverrideKey(ano, semana, idxCuadrilla, d);
+          const overrideDia = overridesPropuesto[keyDia];
+          const baseTurno = getTurnoSemana(idxCuadrilla, d, semana, ano);
+          const efectivo = overrideDia || baseTurno;
+          if (efectivo === 'DESCANSO') {
+            contador++;
+          }
+        }
+        return contador;
+      }
+
+      const handleCellClick = (idxCuadrilla, idxDia) => {
+        // Solo admin + modo edición pueden abrir el modal
+        if (!esAdmin || !editando) return;
+        setModalCell({ idxCuadrilla, idxDia });
+        setModalOpen(true);
+      };
+
+      const cerrarModal = () => {
+        setModalOpen(false);
+        setModalCell(null);
+      };
+
+      const aplicarCambioTurno = (nuevoTurno) => {
+        if (!modalCell) return;
+        const { idxCuadrilla, idxDia } = modalCell;
+        const key = buildOverrideKey(ano, numeroSemana, idxCuadrilla, idxDia);
+        const baseTurno = getTurnoSemana(idxCuadrilla, idxDia, numeroSemana, ano);
+        const overrideActual = overrides[key];
+
+        // Quitar cambio manual
+        if (nuevoTurno === null) {
+          if (overrideActual) {
+            const nuevos = { ...overrides };
+            delete nuevos[key];
+            setOverrides(nuevos);
+          }
+          cerrarModal();
+          return;
+        }
+
+        // Si no hay cambio real, no hacemos nada
+        if (!overrideActual && nuevoTurno === baseTurno) {
+          cerrarModal();
+          return;
+        }
+
+        const overridesPropuesto = { ...overrides, [key]: nuevoTurno };
+
+        if (nuevoTurno === 'DESCANSO') {
+          const descansos = contarDescansosSemana(
+            idxCuadrilla,
+            numeroSemana,
+            ano,
+            overridesPropuesto
+          );
+          if (descansos > 1) {
+            const ok = window.confirm(
+              'Esta cuadrilla tendrá más de un día de DESCANSO en esta semana.\n' +
+              '¿Confirmas este cambio?'
+            );
+            if (!ok) {
+              return;
+            }
+          }
+        }
+
+        // VACACIONES no entra en la validación de descansos
+
+        setOverrides(overridesPropuesto);
+        cerrarModal();
+      };
+
+      const obtenerNombreTurno = (turno) => {
+        if (turno === 'GUARDIA') return 'Guardia';
+        if (turno === 'DIURNO') return 'Diurno';
+        if (turno === 'MADRUGADOR') return 'Madrugador';
+        if (turno === 'DESCANSO') return 'Descanso';
+        if (turno === 'VACACIONES') return 'Vacaciones';
+        return '';
+      };
+
+      let modalContenido = null;
+      if (modalOpen && modalCell && esAdmin) {
+        const { idxCuadrilla, idxDia } = modalCell;
+        const baseTurno = getTurnoSemana(idxCuadrilla, idxDia, numeroSemana, ano);
+        const key = buildOverrideKey(ano, numeroSemana, idxCuadrilla, idxDia);
+        const overrideTurno = overrides[key];
+        const turnoActual = overrideTurno || baseTurno;
+
+        const nombreCuadrilla = cuadrillas[idxCuadrilla];
+        const nombreDia = dias[idxDia];
+        const numDia = getDiaMes(numeroSemana, ano, idxDia);
+
+        modalContenido = (
+          <div className="modal-backdrop">
+            <div className="modal-card">
+              <div className="modal-title">Cambiar turno</div>
+              <div className="modal-subtitle">
+                Semana {numeroSemana} · {getMesAnoTexto(numeroSemana, ano)}
+              </div>
+              <div className="modal-info">
+                <div><strong>Cuadrilla:</strong> {nombreCuadrilla}</div>
+                <div><strong>Día:</strong> {nombreDia} {numDia}</div>
+                <div><strong>Turno actual:</strong> {obtenerNombreTurno(turnoActual)}</div>
+                {overrideTurno && (
+                  <div style={{ marginTop: '4px', fontSize: '12px', opacity: 0.9 }}>
+                    (Cambio manual aplicado sobre el rol base)
+                  </div>
+                )}
+              </div>
+              <div className="modal-options">
+                <button
+                  className="modal-btn modal-btn-guardia"
+                  onClick={() => aplicarCambioTurno('GUARDIA')}
+                >
+                  Guardia
+                </button>
+                <button
+                  className="modal-btn modal-btn-diurno"
+                  onClick={() => aplicarCambioTurno('DIURNO')}
+                >
+                  Diurno
+                </button>
+                <button
+                  className="modal-btn modal-btn-madrugador"
+                  onClick={() => aplicarCambioTurno('MADRUGADOR')}
+                >
+                  Madrugador
+                </button>
+                <button
+                  className="modal-btn modal-btn-descanso"
+                  onClick={() => aplicarCambioTurno('DESCANSO')}
+                >
+                  Descanso
+                </button>
+                <button
+                  className="modal-btn modal-btn-vacaciones"
+                  onClick={() => aplicarCambioTurno('VACACIONES')}
+                >
+                  Vacaciones
+                </button>
+                <button
+                  className="modal-btn modal-btn-quitar"
+                  onClick={() => aplicarCambioTurno(null)}
+                >
+                  Quitar cambio manual
+                </button>
+              </div>
+              <div className="modal-footer">
+                <button className="modal-footer-btn" onClick={cerrarModal}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
 
       return (
         <div className="app-container">
@@ -431,7 +769,6 @@
 
               <div className="toolbar-middle">
                 <div className="badge-week">Semana {numeroSemana}</div>
-                {/* Aquí va ahora el mes y año de la semana seleccionada */}
                 <div className="badge-month-year">
                   {getMesAnoTexto(numeroSemana, ano)}
                 </div>
@@ -443,12 +780,14 @@
             </div>
 
             <div className="toolbar">
-              <button
-                className={`btn ${editando ? 'btn-danger' : 'btn-secondary'}`}
-                onClick={() => setEditando(!editando)}
-              >
-                {editando ? 'Guardar nombres' : 'Editar nombres'}
-              </button>
+              {esAdmin && (
+                <button
+                  className={`btn ${editando ? 'btn-danger' : 'btn-secondary'}`}
+                  onClick={() => setEditando(!editando)}
+                >
+                  {editando ? 'Salir de edición' : 'Editar'}
+                </button>
+              )}
 
               <button className="btn btn-main" onClick={irSemanaActual}>
                 Semana actual
@@ -475,7 +814,7 @@
                 {cuadrillas.map((nom, i) => (
                   <tr key={i}>
                     <td className="col-cuadrilla">
-                      {editando ? (
+                      {esAdmin && editando ? (
                         <input
                           value={nom}
                           onChange={e => handleNombreChange(i, e.target.value)}
@@ -486,7 +825,11 @@
                       )}
                     </td>
                     {dias.map((_, diaIdx) => {
-                      const turno = getTurnoSemana(i, diaIdx, numeroSemana, ano);
+                      const baseTurno = getTurnoSemana(i, diaIdx, numeroSemana, ano);
+                      const key = buildOverrideKey(ano, numeroSemana, i, diaIdx);
+                      const overrideTurno = overrides[key];
+                      const turno = overrideTurno || baseTurno;
+
                       let clase = '';
                       let texto = '';
 
@@ -502,10 +845,21 @@
                       } else if (turno === 'MADRUGADOR') {
                         clase = 'turno-madrugador';
                         texto = 'Madrugador';
+                      } else if (turno === 'VACACIONES') {
+                        clase = 'turno-vacaciones';
+                        texto = 'Vacaciones';
                       }
 
+                      const clickable = esAdmin && editando;
+
                       return (
-                        <td key={diaIdx} className={clase}>
+                        <td
+                          key={diaIdx}
+                          className={clase}
+                          onClick={clickable ? () => handleCellClick(i, diaIdx) : undefined}
+                          style={{ cursor: clickable ? 'pointer' : 'default' }}
+                          title={overrideTurno && esAdmin ? 'Cambio manual aplicado' : ''}
+                        >
                           {texto}
                         </td>
                       );
@@ -517,11 +871,11 @@
           </div>
 
           <div className="legend-card">
-            <div className="legend-title">Horario de Turnos</div>
+            <div className="legend-title">Leyenda de Turnos</div>
             <div className="legend-grid">
               <div className="legend-item">
                 <span className="legend-swatch" style={{ background: '#ff1744' }}></span>
-                Guardia (06:00 pm – 09:00 am)
+                Guardia (06:00 pm – 06:00 am)
               </div>
               <div className="legend-item">
                 <span className="legend-swatch" style={{ background: '#ffe844' }}></span>
@@ -535,8 +889,14 @@
                 <span className="legend-swatch" style={{ background: '#4dabf7' }}></span>
                 Descanso
               </div>
+              <div className="legend-item">
+                <span className="legend-swatch" style={{ background: '#ffb347' }}></span>
+                Vacaciones
+              </div>
             </div>
           </div>
+
+          {modalContenido}
         </div>
       );
     }
@@ -545,4 +905,3 @@
   </script>
 </body>
 </html>
-
