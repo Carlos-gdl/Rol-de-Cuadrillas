@@ -441,6 +441,9 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+    // Versión del almacenamiento. Sube este número cuando cambies cuadrillas / lógica base.
+    const STORAGE_VERSION = '2';
+
     // LÓGICA DEL ROL — INTACTA
     const PATTERNS = [
       ['DESCANSO', 'DIURNO',  'DIURNO',  'DIURNO',  'DIURNO',  'DIURNO',  'GUARDIA'],
@@ -530,8 +533,17 @@
 
       const [overrides, setOverrides] = useState(() => {
         try {
-          const stored = window.localStorage.getItem('rolCuadrillasOverrides');
-          return stored ? JSON.parse(stored) : {};
+          const savedVersion = window.localStorage.getItem('rolVersion');
+          const storedOverrides = window.localStorage.getItem('rolCuadrillasOverrides');
+
+          // Si la versión cambió, reseteamos overrides y escribimos la nueva versión
+          if (savedVersion !== STORAGE_VERSION) {
+            window.localStorage.setItem('rolVersion', STORAGE_VERSION);
+            window.localStorage.removeItem('rolCuadrillasOverrides');
+            return {};
+          }
+
+          return storedOverrides ? JSON.parse(storedOverrides) : {};
         } catch (e) {
           return {};
         }
